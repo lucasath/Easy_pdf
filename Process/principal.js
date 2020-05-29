@@ -2,6 +2,7 @@ const { upload } = require("../Space/Space.js");
 
 //Execute query redis and print ps:Callbackhell redis
 // TODO Change to Async lib
+// Obsolet function
 const execute = async (client, cluster) => {
   client.lrange(process.env.FILA, 0, -1, (err, ret) => {
     ret.forEach(element => {
@@ -30,6 +31,67 @@ const execute = async (client, cluster) => {
   });
 };
 
+// New execute function
+const execute2 = async (client, cluster) => {
+  fila = await getfila(client);
+
+  fila.forEach(async element => {
+    primeiro = await getprimeiro(client);
+
+    if (primeiro != null) {
+      lista = await getlista(client, primeiro);
+
+      if (lista != null) {
+        if (lista.url != null) {
+          cluster.queue({ url: lista.url, file: primeiro }, print);
+
+          await deletelist(client, primeiro);
+        } else if (lista.raw != null) {
+          cluster.queue(
+            {
+              url: "file:///" + process.env.HTML_PATH + lista.raw,
+              file: primeiro
+            },
+            print
+          );
+
+          await deletelist(client, primeiro);
+        }
+      }
+    }
+  });
+};
+
+const getfila = async client => {
+  return new Promise((resolve, reject) => {
+    client.lrange(process.env.FILA, 0, -1, (err, ret) => {
+      resolve(ret);
+    });
+  });
+};
+
+const getprimeiro = async client => {
+  return new Promise((resolve, reject) => {
+    client.lpop(process.env.FILA, (err, ret) => {
+      resolve(ret);
+    });
+  });
+};
+
+const getlista = async (client, reply) => {
+  return new Promise((resolve, reject) => {
+    client.hgetall(reply, (err, value) => {
+      resolve(value);
+    });
+  });
+};
+
+const deletelist = async (client, element) => {
+  return new Promise((resolve, reject) => {
+    client.del(element);
+  });
+};
+
 //Print and s3 upload
 const print = async ({ page, data }) => {
   const name = data.file + ".pdf";
@@ -50,4 +112,4 @@ const print = async ({ page, data }) => {
 };
 
 exports.print = print;
-exports.execute = execute;
+exports.execute = execute2;
